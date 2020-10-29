@@ -1,6 +1,6 @@
 client_venv
 novarc_auto
-perkit_venv
+perfkit_venv
 rally_venv
 clientsrc
 .tox

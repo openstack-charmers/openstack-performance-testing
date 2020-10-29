@@ -1,9 +1,6 @@
 [submodule "charm-test-infra"]
 	path = charm-test-infra
 	url = git@github.com:openstack-charmers/charm-test-infra.git
-[submodule "PerfKitBenchmarker"]
-	path = PerfKitBenchmarker
-	url = https://github.com/GoogleCloudPlatform/PerfKitBenchmarker.git
 [submodule "openstack-charm-testing"]
 	path = openstack-charm-testing
 	url = https://github.com/openstack-charmers/openstack-charm-testing

@@ -8,4 +8,4 @@ tox -e rally,perfkit
 ln -fs charm-test-infra/.tox/clients/bin/activate client_venv
 ln -fs openstack-charm-testing/templates/rally rally-templates
 ln -fs .tox/rally/bin/activate rally_venv
-ln -fs .tox/perfkit/bin/activate perkit_venv
+ln -fs .tox/perfkit/bin/activate perfkit_venv
