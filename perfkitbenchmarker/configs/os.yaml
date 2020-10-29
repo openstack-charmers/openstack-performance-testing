@@ -1,0 +1,27 @@
+# iperf.vm_groups.loaders.vm_spec.OpenStack: background_cpu_threads, background_network_ip_type, background_network_mbits_per_sec, cidr, disable_interrupt_moderation, disable_rss, gpu_count, gpu_type, image, install_packages, machine_type, num_vms_per_host, use_dedicated_host, vm_metadata, zone.
+
+#iperf:
+#  vm_groups:
+#    loaders:
+#      vm_spec:
+#        OpenStack:
+#          machine_type: m1.small
+#          image: bionic
+#          zone: nova
+
+# iperf.vm_groups.vm_1: cidr, cloud, disk_count, disk_spec, os_type, placement_group_name, static_vms, vm_count, vm_spec.
+
+iperf:
+  vm_groups:
+    vm_1:
+      vm_spec:
+        OpenStack:
+          machine_type: m1.small
+          image: bionic
+          zone: nova
+    vm_2:
+      vm_spec:
+        OpenStack:
+          machine_type: m1.small
+          image: bionic
+          zone: nova
