@@ -1,0 +1,3 @@
+cd openstack-bundles/development/shared
+source openrc
+cd - &>> /dev/null

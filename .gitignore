@@ -1,0 +1,8 @@
+client_venv
+novarc_auto
+perkit_venv
+rally_venv
+clientsrc
+.tox
+rally_scenarios
+rally-templates
