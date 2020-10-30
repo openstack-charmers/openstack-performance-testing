@@ -17,11 +17,11 @@ iperf:
       vm_spec:
         OpenStack:
           machine_type: m1.small
-          image: bionic
+          image: focal
           zone: nova
     vm_2:
       vm_spec:
         OpenStack:
           machine_type: m1.small
-          image: bionic
+          image: focal
           zone: nova

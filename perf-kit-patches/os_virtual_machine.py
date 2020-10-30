@@ -420,6 +420,10 @@ class ClearBasedOpenStackVirtualMachine(OpenStackVirtualMachine,
                                         linux_virtual_machine.ClearMixin):
   DEFAULT_IMAGE = 'upstream-clear'
 
-class UbuntuBasedOpenStackVirtualMachine(OpenStackVirtualMachine,
-                                         linux_virtual_machine.Ubuntu1804Mixin):
+class Ubuntu1804BasedOpenStackVirtualMachine(OpenStackVirtualMachine,
+                                             linux_virtual_machine.Ubuntu1804Mixin):
   DEFAULT_IMAGE = 'bionic'
+
+class Ubuntu2004BasedOpenStackVirtualMachine(OpenStackVirtualMachine,
+                                             linux_virtual_machine.Ubuntu2004Mixin):
+  DEFAULT_IMAGE = 'focal'

@@ -1881,6 +1881,7 @@ class Debian10Mixin(BaseDebianMixin):
 
 class BaseUbuntuMixin(BaseDebianMixin):
   """Class holding Ubuntu specific VM methods and attributes."""
+  PYTHON_PACKAGE = 'python2.7'
 
   def AppendKernelCommandLine(self, command_line, reboot=True):
     """Appends the provided command-line to the VM and reboots by default."""
@@ -1916,6 +1917,12 @@ class Ubuntu1804Mixin(BaseUbuntuMixin):
         r'sudo sed -i "1 i\export PATH=$PATH:/snap/bin" ~/.bashrc')
     self.RemoteCommand(
         r'sudo sed -i "1 i\export PATH=$PATH:/snap/bin" /etc/bash.bashrc')
+
+
+class Ubuntu2004Mixin(BaseUbuntuMixin):
+  """Class holding Ubuntu2004 specific VM methods and attributes."""
+  OS_TYPE = os_types.UBUNTU2004
+  PYTHON_PACKAGE = 'python3'
 
 
 class Ubuntu1604Cuda9Mixin(BaseUbuntuMixin):
