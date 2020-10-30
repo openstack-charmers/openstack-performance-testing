@@ -26,4 +26,4 @@ pywinrm
 timeout-decorator
 google-cloud-datastore
 google-cloud-monitoring
-#git+https://github.com/GoogleCloudPlatform/PerfKitBenchmarker#egg=perfkitbenchmarker
+git+https://github.com/gnuoy/PerfKitBenchmarker@ubuntu-openstack-updates#egg=perfkitbenchmarker

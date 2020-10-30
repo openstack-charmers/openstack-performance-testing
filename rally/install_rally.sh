@@ -8,7 +8,7 @@ else
 fi
 
 source rally_venv
-source openrc
+source ../openrc
 # Gather vars for tempest template
 image_name=$(openstack image list | grep $image | awk '{ print $4 }')
 

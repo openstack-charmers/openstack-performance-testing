@@ -1,12 +1,12 @@
-[submodule "charm-test-infra"]
-	path = charm-test-infra
-	url = git@github.com:openstack-charmers/charm-test-infra.git
-[submodule "openstack-charm-testing"]
-	path = openstack-charm-testing
-	url = https://github.com/openstack-charmers/openstack-charm-testing
-[submodule "rally"]
-	path = rally
-	url = https://github.com/openstack/rally
-[submodule "openstack-bundles"]
-	path = openstack-bundles
+[submodule "repos/openstack-bundles"]
+	path = repos/openstack-bundles
 	url = https://github.com/openstack-charmers/openstack-bundles.git
+[submodule "repos/charm-test-infra"]
+	path = repos/charm-test-infra
+	url = https://github.com/openstack-charmers/charm-test-infra
+[submodule "repos/rally"]
+	path = repos/rally
+	url = https://github.com/openstack/rally
+[submodule "repos/openstack-charm-testing"]
+	path = repos/openstack-charm-testing
+	url = https://github.com/openstack-charmers/openstack-charm-testing

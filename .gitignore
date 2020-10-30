@@ -4,5 +4,5 @@ perfkit_venv
 rally_venv
 clientsrc
 .tox
-rally_scenarios
+rally/rally_scenarios
 rally-templates

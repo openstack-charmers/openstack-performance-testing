@@ -1,20 +1,29 @@
-After cloning init with:
+This repository is designed to gather tools needs to run different performance
+tests. A number of git projects are installed as submodules in the `repos`
+directory.
+
+
+Before using any of the tooling update the submodules and create the python
+virtual environments:
 
 ```
 ./init.sh
 ```
 
-Prepare ralley run with:
+To use rally:
 
 ```
+cd rally
 ./install_rally.sh
 ```
 
 PerfKit with:
 
 ```
-source perfkit_venv
-pkb.py --cloud=OpenStack --machine_type=m1.small --benchmark_config_file=/home/ubuntu/bugs/openstack-perf-testing/perfkitbenchmarker/configs/os.yaml --openstack_network=private --benchmarks=iperf --os_type=ubuntu1804 --openstack_floating_ip_pool=ext_net --http_proxy=$http_proxy --https_proxy=$https_proxy
+cd perfkitbenchmarker
+export vm_http_proxy=<A HTTP PROXY>
+export vm_https_proxy=<A HTTPS PROXY>
+./example.sh
 ```
 
 Openstack Clients:
@@ -23,3 +32,5 @@ Openstack Clients:
 source client_venv 
 source openrc 
 ```
+
+
