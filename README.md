@@ -33,4 +33,10 @@ source client_venv
 source openrc 
 ```
 
+Add sriov ports to application
+
+```
+source zaza_venv 
+./manage-sriov-ports.py --application ubuntu --network stor9 --vnic-binding-type direct add
+```
 

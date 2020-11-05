@@ -15,3 +15,5 @@ ln -fs repos/charm-test-infra/.tox/clients/bin/activate client_venv
 ( cd perfkitbenchmarker; tox -e perfkit; )
 ( cd perfkitbenchmarker; ln -fs .tox/perfkit/bin/activate perfkit_venv; )
 
+( cd zaza; tox -e zaza; )
+ln -fs zaza/.tox/zaza/bin/activate zaza_venv
