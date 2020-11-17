@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+
+import asyncio
+import time
+
+import maas.client
+import maas.client.enum
+import maas.client.utils.maas_async as maas_async
+
+# for type hints
+import maas.client.viscera.filesystems
+import maas.client.viscera.machines
+
+BCACHE_FSTYPES = ('bcache-backing', 'bcache-cache')
+
+
+def _get_fstype(
+        filesystem: maas.client.viscera.filesystems.Filesystem) -> str:
+    """Check if the argument is a filesystem and return type.
+
+    :returns: Filesystem type or empty string
+    """
+    return filesystem.fstype if filesystem else ''
+
+
+async def _clear_machine_storage(
+        machine: maas.client.viscera.machines.Machine):
+    deferred_partition_removal = []
+    for bd in machine.block_devices:
+        bd_fs = _get_fstype(bd.filesystem)
+        for partition in bd.partitions:
+            pt_fs = _get_fstype(partition.filesystem)
+            if partition.filesystem is not None:
+                if partition.filesystem.fstype in BCACHE_FSTYPES:
+                    # We cannot remove partition until bcache is removed
+                    print('Deferring removal of partition {}'
+                          .format(partition.path))
+                    deferred_partition_removal.append(partition)
+                    continue
+                print('Removing {} filesystem on {}'
+                      .format(pt_fs, partition.path))
+                await partition.umount()
+                await partition.unformat()
+            print('Removing partition {}'.format(partition.path))
+            await partition.delete()
+        if (bd.filesystem is not None and
+                bd.filesystem.fstype not in BCACHE_FSTYPES):
+            print('Removing filesystem {}'.format(bd_fs))
+            await bd.unmount()
+            await bd.unformat()
+        if bd.type == maas.client.enum.BlockDeviceType.VIRTUAL:
+            print('Removing virtual block device {}'.format(bd.name))
+            await bd.delete()
+    for cache_set in machine.cache_sets:
+        print('Removing cache set {}'.format(cache_set))
+        await cache_set.delete()
+    for partition in deferred_partition_removal:
+        print('Removing partition {}'.format(partition.path))
+        await partition.delete()
+
+
+async def _restore_machine_storage(
+        machine: maas.client.viscera.machines.Machine):
+    await machine.restore_storage_configuration()
+
+
+@maas_async.asynchronous
+async def work_with_maas(maas_url: str,
+                         maas_username: str,
+                         maas_password: str,
+                         allow_machines: tuple,
+                         remove: bool,
+                         restore_storage_config: bool):
+    """Main work loop for working with MAAS.
+
+    :param maas_url: API URL for MAAS.
+    :param maas_username: API URL for MAAS.
+    :param maas_password: API URL for MAAS.
+    :param remove: Remove current disk layout.
+    :param restore_storage_config: Restore storage configuration to how MAAS
+                                   laid it out at time of commissioning.
+    """
+    if not len(allow_machines):
+        print('Cowardly refusing to do anything without a explicit tuple of '
+              'allowed machines')
+        return
+    if remove:
+        print('***WARNING*** WILL ACTUALLY REMOVE CONFIGURATION ***WARNING***')
+        print('***WARNING***         SLEEPING 5 SECONDS         ***WARNING***')
+        time.sleep(5)
+        print('Running')
+    client = await maas.client.login(
+        maas_url, username=maas_username, password=maas_password)
+
+    # Get a reference to self.
+    myself = await client.users.whoami()
+    assert myself.is_admin, '{} is not an admin'.format(myself.username)
+
+    machines = await client.machines.list()
+    pending = []
+    for machine in machines:
+        if machine.hostname not in allow_machines:
+            continue
+        if machine.status != maas.client.enum.NodeStatus.READY:
+            print('Can only work with machines in READY state, skip {}'
+                  .format(repr(machine)))
+            continue
+        print(repr(machine))
+        if remove:
+            pending.append(_clear_machine_storage(machine))
+        elif restore_storage_config:
+            pending.append(_restore_machine_storage(machine))
+        else:
+            for bd in machine.block_devices:
+                bd_fs = _get_fstype(bd.filesystem)
+                print('{} {} ({})'
+                      .format(bd.name, bd.type, bd_fs))
+                for partition in bd.partitions:
+                    pt_fs = _get_fstype(partition.filesystem)
+                    print(' - {} ({},  {})'
+                          .format(partition.path,
+                                  partition.size,
+                                  pt_fs))
+    if pending:
+        await asyncio.gather(*pending)
+
+maas_url = 'http://127.0.0.1:5240/MAAS'
+maas_username = 'someuser'
+maas_password = 'somepassword'
+allow_machines=('node-fontana',)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=False, restore_storage_config=False)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=False, restore_storage_config=True)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=True, restore_storage_config=False)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=False, restore_storage_config=False)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=False, restore_storage_config=True)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines, remove=False, restore_storage_config=False)
