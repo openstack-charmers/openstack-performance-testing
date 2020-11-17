@@ -64,13 +64,30 @@ async def _restore_machine_storage(
     await machine.restore_storage_configuration()
 
 
+async def _create_machine_storage(
+        machine: maas.client.viscera.machines.Machine):
+    cache_devices = []
+    for bd in machine.block_devices:
+        if 'ssd' in bd.tags:
+            cache_devices.append(bd)
+    for bd in cache_devices:
+        div = 4
+        size = bd.size - 1024*1024*100
+        cache_size = size // div
+        for n in range(0, div):
+            await bd.partitions.create(int(cache_size))
+        for partition in bd.partitions:
+            await machine.cache_sets.create(partition)
+
+
 @maas_async.asynchronous
 async def work_with_maas(maas_url: str,
                          maas_username: str,
                          maas_password: str,
                          allow_machines: tuple,
                          remove: bool,
-                         restore_storage_config: bool):
+                         restore_storage_config: bool,
+                         create_storage_config: bool):
     """Main work loop for working with MAAS.
 
     :param maas_url: API URL for MAAS.
@@ -110,6 +127,8 @@ async def work_with_maas(maas_url: str,
             pending.append(_clear_machine_storage(machine))
         elif restore_storage_config:
             pending.append(_restore_machine_storage(machine))
+        elif create_storage_config:
+            pending.append(_create_machine_storage(machine))
         else:
             for bd in machine.block_devices:
                 bd_fs = _get_fstype(bd.filesystem)
@@ -127,22 +146,47 @@ async def work_with_maas(maas_url: str,
 maas_url = 'http://127.0.0.1:5240/MAAS'
 maas_username = 'someuser'
 maas_password = 'somepassword'
+
 allow_machines=('node-fontana',)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=False, restore_storage_config=False)
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=False,
+    create_storage_config=False)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=False, restore_storage_config=True)
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=False,
+    create_storage_config=False)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=True, restore_storage_config=False)
+    allow_machines=allow_machines,
+    remove=True,
+    restore_storage_config=False,
+    create_storage_config=False)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=False, restore_storage_config=False)
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=False,
+    create_storage_config=True)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=False, restore_storage_config=True)
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=False,
+    create_storage_config=False)
 work_with_maas(
     maas_url, maas_username, maas_password,
-    allow_machines=allow_machines, remove=False, restore_storage_config=False)
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=True,
+    create_storage_config=False)
+work_with_maas(
+    maas_url, maas_username, maas_password,
+    allow_machines=allow_machines,
+    remove=False,
+    restore_storage_config=False,
+    create_storage_config=False)
