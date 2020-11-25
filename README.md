@@ -40,3 +40,13 @@ source zaza_venv
 ./manage-sriov-ports.py --application ubuntu --network stor9 --vnic-binding-type direct add
 ```
 
+Using scripts with Magpie
+
+```
+juju config magpie push-gateway=10.246.114.60
+source client_venv 
+./manage-sriov-ports.py --application magpie  --network stor9 --vnic-binding-type direct add
+./manage-magpie-units.py -c 10.9.0.0/16 -l 10 -a magpie listen
+./manage-magpie-units.py -a magpie advertise
+juju run-action magpie/4 run-iperf network-cidr='10.9.0.0/16' units='magpie/3 magpie/2' iperf-batch-time=5 concurrency-progression='4 8' total-run-time=60 tag='special-run'
+```

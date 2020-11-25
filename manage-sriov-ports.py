@@ -3,6 +3,10 @@
 import argparse
 import logging
 import sys
+import subprocess
+import tenacity
+import textwrap
+import tempfile
 
 import zaza.model
 import zaza.utilities.cli as cli_utils
@@ -100,6 +104,60 @@ def cleanup(nova_client, neutron_client, network_name, application_name):
             logging.info("Deleting port {}".format(port_name))
             neutron_client.delete_port(port['id'])
 
+def add_port_to_netplan(neutron_client, network_name, application_name):
+    units = {u.data['machine-id']: u.entity_id for u in zaza.model.get_units(application_name=application_name)}
+    # Fold back into zaza.openstack.utilities.openstack
+    network = get_network(neutron_client, network_name)
+    for machine in zaza.model.get_machines(application_name=application_name):
+        unit_name = units[machine.entity_id]
+        port_name = get_port_name(network, machine)
+        port = get_port(neutron_client, port_name)
+        mac_address = port['mac_address']
+        run_cmd_nic = "ip -f link -br -o addr|grep {}".format(mac_address)
+        logging.info("Running '{}' on {}".format(run_cmd_nic, unit_name))
+        interface = zaza.model.run_on_unit(unit_name, run_cmd_nic)
+        interface = interface['Stdout'].split(' ')[0]
+
+        run_cmd_netplan = """sudo egrep -iR '{}|{}$' /etc/netplan/
+                            """.format(mac_address, interface)
+
+        logging.info("Running '{}' on {}".format(run_cmd_netplan, unit_name))
+        netplancfg = zaza.model.run_on_unit(unit_name, run_cmd_netplan)
+
+        if (mac_address in str(netplancfg)) or (interface in str(netplancfg)):
+            logging.warn("mac address {} or nic {} already exists in "
+                         "/etc/netplan".format(mac_address, interface))
+            continue
+        body_value = textwrap.dedent("""\
+            network:
+                ethernets:
+                    {0}:
+                        dhcp4: true
+                        dhcp6: false
+                        optional: true
+                        match:
+                            macaddress: {1}
+                        set-name: {0}
+                version: 2
+        """.format(interface, mac_address))
+        for attempt in tenacity.Retrying(
+                stop=tenacity.stop_after_attempt(3),
+                wait=tenacity.wait_exponential(
+                multiplier=1, min=2, max=10)):
+            with attempt:
+                with tempfile.NamedTemporaryFile(mode="w") as netplan_file:
+                    netplan_file.write(body_value)
+                    netplan_file.flush()
+                    logging.info("Copying {} to {}".format(unit_name, '/home/ubuntu/60-dataport.yaml'))
+                    subprocess.check_call(['juju', 'scp', netplan_file.name, '{}:/home/ubuntu/60-dataport.yaml'.format(unit_name)])
+                    #zaza.model.scp_to_unit(
+                    #    unit_name, netplan_file.name,
+                    #    '/home/ubuntu/60-dataport.yaml', user="ubuntu")
+                run_cmd_mv = "sudo mv /home/ubuntu/60-dataport.yaml /etc/netplan/"
+                logging.info("Running '{}' on {}".format(run_cmd_mv, unit_name))
+                zaza.model.run_on_unit(unit_name, run_cmd_mv)
+                logging.info("Running netplan apply")
+                zaza.model.run_on_unit(unit_name, "sudo netplan apply")
 
 def create_ports(nova_client, neutron_client, network_name, application_name,
                  vnic_type, port_security_enabled=True):
@@ -123,7 +181,7 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
         port_name = get_port_name(network, machine)
         port = get_port(neutron_client, port_name)
         if port:
-            logging.warn("Skipping creating port {}".format(port_name))
+            logging.warning("Skipping creating port {}".format(port_name))
         else:
             logging.info("Creating port {}".format(port_name))
             port_config = {
@@ -136,10 +194,12 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
             }
             if vnic_type:
                 port_config['port']['binding:vnic_type'] = vnic_type
+                port_config['port']['binding:profile'] = {
+                    'capabilities': 'switchdev'}
             port = neutron_client.create_port(body=port_config)['port']
         server = nova_client.servers.get(machine.data['instance-id'])
         if is_port_attached(nova_client, server, port['id']):
-            logging.warn(
+            logging.warning(
                 "Skipping attaching port {} to {}, already attached".format(
                      port_name,
                      machine.data['instance-id']))
@@ -201,6 +261,11 @@ def main():
             args.network_name,
             args.application_name,
             binding_type)
+        logging.info('Adding to netplan')
+        add_port_to_netplan(
+            neutron_client,
+            args.network_name,
+            args.application_name)
 
 
 if __name__ == "__main__":
