@@ -23,7 +23,7 @@ $ ./manage-sriov-ports.py --network stor9 --number-of-units 10  --flavor m1.smal
 2020-12-01 13:12:32 [INFO] Launching instance ps5-bench-9
 ```
 
-1. Create manual cloud and bootstrap controller.
+2. Create manual cloud and bootstrap controller.
 
 ```
 $ ./manage-sriov-ports.py add-manual-cloud
@@ -47,7 +47,7 @@ Initial model "default" added
 (clients) ubuntu@gnuoy-bastio
 ```
 
-1. Add pre-created machines to manual cloud.
+3. Add pre-created machines to manual cloud.
 
 ```
 $ ./manage-sriov-ports.py add-machines
@@ -73,7 +73,7 @@ $ ./manage-sriov-ports.py add-machines
 2020-12-01 13:20:34 [INFO] Finished adding 10.9.0.6
 ```
 
-1. All done.
+4. All done.
 
 ```
 $ juju status
