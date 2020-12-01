@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
 
+import asyncio
 import argparse
 import logging
+import os
 import sys
 import subprocess
 import tenacity
 import textwrap
 import tempfile
-
+import time
+from pathlib import Path
+import yaml
+import novaclient
 import zaza.model
 import zaza.utilities.cli as cli_utils
 import zaza.openstack.utilities.openstack as zaza_os
+
+MACHINE_PREFIX = "ps5-bench"
+CONTROLLER_NAME = "{}-controller".format(MACHINE_PREFIX)
+CLOUD_NAME = "{}-manual".format(MACHINE_PREFIX)
 
 
 def get_network(neutron_client, network_name):
@@ -104,8 +113,10 @@ def cleanup(nova_client, neutron_client, network_name, application_name):
             logging.info("Deleting port {}".format(port_name))
             neutron_client.delete_port(port['id'])
 
+
 def add_port_to_netplan(neutron_client, network_name, application_name):
-    units = {u.data['machine-id']: u.entity_id for u in zaza.model.get_units(application_name=application_name)}
+    units = {u.data['machine-id']: u.entity_id
+             for u in zaza.model.get_units(application_name=application_name)}
     # Fold back into zaza.openstack.utilities.openstack
     network = get_network(neutron_client, network_name)
     for machine in zaza.model.get_machines(application_name=application_name):
@@ -148,16 +159,22 @@ def add_port_to_netplan(neutron_client, network_name, application_name):
                 with tempfile.NamedTemporaryFile(mode="w") as netplan_file:
                     netplan_file.write(body_value)
                     netplan_file.flush()
-                    logging.info("Copying {} to {}".format(unit_name, '/home/ubuntu/60-dataport.yaml'))
-                    subprocess.check_call(['juju', 'scp', netplan_file.name, '{}:/home/ubuntu/60-dataport.yaml'.format(unit_name)])
-                    #zaza.model.scp_to_unit(
-                    #    unit_name, netplan_file.name,
-                    #    '/home/ubuntu/60-dataport.yaml', user="ubuntu")
-                run_cmd_mv = "sudo mv /home/ubuntu/60-dataport.yaml /etc/netplan/"
-                logging.info("Running '{}' on {}".format(run_cmd_mv, unit_name))
+                    logging.info("Copying {} to {}".format(
+                        unit_name,
+                        '/home/ubuntu/60-dataport.yaml'))
+                    subprocess.check_call([
+                        'juju',
+                        'scp',
+                        netplan_file.name,
+                        '{}:/home/ubuntu/60-dataport.yaml'.format(unit_name)])
+                run_cmd_mv = ("sudo mv /home/ubuntu/60-dataport.yaml "
+                              "/etc/netplan/")
+                logging.info(
+                    "Running '{}' on {}".format(run_cmd_mv, unit_name))
                 zaza.model.run_on_unit(unit_name, run_cmd_mv)
                 logging.info("Running netplan apply")
                 zaza.model.run_on_unit(unit_name, "sudo netplan apply")
+
 
 def create_ports(nova_client, neutron_client, network_name, application_name,
                  vnic_type, port_security_enabled=True, shutdown_move=True):
@@ -206,7 +223,7 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
         else:
             logging.info("Shutting down {}".format(
                 machine.data['instance-id']))
-            server_state =  getattr(server, 'OS-EXT-STS:vm_state').lower()
+            server_state = getattr(server, 'OS-EXT-STS:vm_state').lower()
             if shutdown_move and server_state != 'stopped':
                 server.stop()
                 #subprocess.call(
@@ -236,6 +253,180 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
                     msg="Server start")
 
 
+def add_servers(nova_client, neutron_client, network_name, number_of_units,
+                flavor_name, image_name, vnic_type='direct',
+                port_security_enabled=False):
+    """Create a servers using pre-created ports
+
+    :param nova_client: Nova client
+    :type nova_client: novaclient.v2.client.Client
+    :param neutron_client: Neutron client
+    :type neutron_client: neutronclient.v2_0.client.Client
+    :param network_name: Name of network
+    :type network_name: Str
+    :param number_of_units: Number of servers to create
+    :type number_of_units: int
+    :param flavor_name: Flavor to use for servers
+    :type flavor_name: Str
+    :param image_name: Image to use for servers
+    :type image_name: Str
+    :param vnic_type: vnic type
+    :type vnic_type: Union[str, None]
+    :param port_security_enabled: Whether to enable port security
+    :type port_security_enabled: bool
+    """
+    network = get_network(neutron_client, network_name)
+
+    image = nova_client.glance.find_image(image_name)
+
+    flavor = nova_client.flavors.find(name=flavor_name)
+
+    net = neutron_client.find_resource("network", network_name)
+    meta = {}
+
+    # Add ~/.ssh/id_rsa.pub if its not there already
+    ssh_dir = '{}/.ssh'.format(str(Path.home()))
+    keypair_name = 'ps5benchmarking'
+
+    existing_keys = nova_client.keypairs.findall(name=keypair_name)
+    key_file = '{}/id_rsa.pub'.format(ssh_dir, keypair_name)
+
+    assert os.path.isfile(key_file), "Cannot find keyfile {}".format(key_file)
+
+    if not existing_keys:
+        with open(key_file, 'r') as kf:
+            pub_key = kf.read()
+        nova_client.keypairs.create(
+            name=keypair_name,
+            public_key=pub_key)
+
+    for i in range(0, int(number_of_units)):
+        if i == 0:
+            vm_name = CONTROLLER_NAME
+        else:
+            vm_name = "{}-{}".format(MACHINE_PREFIX, i)
+
+        try:
+            nova_client.servers.find(name=vm_name)
+            logging.warn("{} already exists, skipping".format(vm_name))
+            continue
+        except novaclient.exceptions.NotFound:
+            pass
+        port_name = "{}_port".format(vm_name)
+
+        port_config = {
+            'port': {
+                'admin_state_up': True,
+                'name': port_name,
+                'network_id': net['id'],
+                'port_security_enabled': port_security_enabled,
+            }
+        }
+        if vnic_type:
+            port_config['port']['binding:vnic_type'] = vnic_type
+            port_config['port']['binding:profile'] = {
+                'capabilities': 'switchdev'}
+        port = neutron_client.create_port(body=port_config)['port']
+
+        nics = [{'port-id': port.get('id')}]
+
+        bdmv2 = None
+
+        logging.info('Launching instance {}'.format(vm_name))
+        instance = nova_client.servers.create(
+            name=vm_name,
+            image=image,
+            block_device_mapping_v2=bdmv2,
+            flavor=flavor,
+            key_name=keypair_name,
+            meta=meta,
+            nics=nics)
+
+
+def add_new_hostkey(ip):
+    """Remove the existing hostkey and blindly add new one.
+
+    :param ip: IP address entry to refresh
+    :type ip: str
+    """
+    subprocess.check_call(
+        ['ssh-keygen', '-R', ip],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT)
+    conn = 'ubuntu@{}'.format(ip)
+    subprocess.check_call(
+        ['ssh', '-o', 'StrictHostKeyChecking=accept-new', conn, '"exit"'],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.STDOUT)
+
+
+def add_cloud(nova_client):
+    """Register a manual cloud
+
+    :param nova_client: Nova client
+    :type nova_client: novaclient.v2.client.Client
+    """
+    controller = nova_client.servers.find(name=CONTROLLER_NAME)
+    ip = [ips[0] for net, ips in controller.networks.items()][0]
+    unit_address = 'ubuntu@{}'.format(ip)
+    add_new_hostkey(ip)
+    clouds = yaml.load(
+        subprocess.check_output(['juju', 'list-clouds', '--format', 'yaml']),
+        Loader=yaml.FullLoader)
+    if CLOUD_NAME in clouds:
+        logging.warn('Cloud {} already exists'.format(CLOUD_NAME))
+    else:
+        contents = textwrap.dedent("""\
+            clouds:
+              {}:
+                type: manual
+                endpoint: {}
+                regions:
+                  default: {{}}
+        """.format(CLOUD_NAME, unit_address))
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as tfile:
+            tfile.write(contents)
+            logging.info(tfile.name)
+        subprocess.check_output(
+            ['juju', 'add-cloud', '--client', CLOUD_NAME, tfile.name])
+    subprocess.check_output(
+        ['juju', 'bootstrap', CLOUD_NAME, '{}-controller'.format(CLOUD_NAME)])
+
+
+def add_machines(nova_client):
+    """Add machines to manual cloud
+
+    :param nova_client: Nova client
+    :type nova_client: novaclient.v2.client.Client
+    """
+    ips = []
+    for server in nova_client.servers.list():
+        if (server.name.startswith(MACHINE_PREFIX) and
+                not server.name == CONTROLLER_NAME):
+            ip = [ips[0] for net, ips in server.networks.items()][0]
+            ips.append(ip)
+            add_new_hostkey(ip)
+
+    async def _add_machines():
+        async def run_add_machine(ip):
+            logging.info('Adding {}'.format(ip))
+            cmd = ['juju', 'add-machine', 'ssh:ubuntu@{}'.format(ip)]
+            proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                logging.error(
+                    'Problem adding {}: {}'.format(ip,
+                                                   stderr.decode().strip()))
+            else:
+                logging.info('Finished adding {}'.format(ip))
+        await asyncio.gather(*[run_add_machine(ip) for ip in ips])
+    asyncio.run(_add_machines())
+
+
 def parse_args(args):
     """Parse command line arguments.
 
@@ -246,15 +437,28 @@ def parse_args(args):
     parser.add_argument('action', help='Action to run: add or cleanup')
     parser.add_argument('-a', '--application', dest='application_name',
                         help='Name of Juju application to add port to',
-                        required=True)
+                        required=False)
     parser.add_argument('-n', '--network', dest='network_name',
                         help='Name of network to create ports on',
-                        required=True)
+                        required=False)
     parser.add_argument('-v', '--vnic-binding-type', dest='vnic_binding_type',
                         help='Vnic binding type: "direct" or "dummy')
+    parser.add_argument('-u', '--number-of-units', dest='number_of_units',
+                        help='Number of units')
+    parser.add_argument('-f', '--flavor', dest='flavor',
+                        help='Name of flavor')
+    parser.add_argument('-i', '--image-name', dest='image_name',
+                        help='Name of image')
+    parser.add_argument('-p', '--enable-port-security',
+                        dest='enable_port_security',
+                        help='Whether to enable port security',
+                        type=bool)
     parser.add_argument('--log', dest='loglevel',
                         help='Loglevel [DEBUG|INFO|WARN|ERROR|CRITICAL]')
-    parser.set_defaults(loglevel='INFO', vnic_binding_type='direct')
+    parser.set_defaults(
+        loglevel='INFO',
+        vnic_binding_type='direct',
+        enable_port_security=False)
     return parser.parse_args(args)
 
 
@@ -265,7 +469,7 @@ def main():
     neutron_client = zaza_os.get_neutron_session_client(session)
     nova_client = zaza_os.get_nova_session_client(session)
     if args.vnic_binding_type == 'dummy':
-        logging.warn('Running in dummy mode')
+        logging.warning('Running in dummy mode')
         binding_type = None
     else:
         binding_type = args.vnic_binding_type
@@ -276,7 +480,7 @@ def main():
             neutron_client,
             args.network_name,
             args.application_name)
-    elif args.action == 'add':
+    elif args.action == 'add-ports':
         logging.info('Adding ports')
         create_ports(
             nova_client,
@@ -290,6 +494,20 @@ def main():
             neutron_client,
             args.network_name,
             args.application_name)
+    elif args.action == 'add-servers':
+        add_servers(
+            nova_client,
+            neutron_client,
+            args.network_name,
+            args.number_of_units,
+            args.flavor,
+            args.image_name,
+            vnic_type=binding_type,
+            port_security_enabled=args.enable_port_security)
+    elif args.action == 'add-manual-cloud':
+        add_cloud(nova_client)
+    elif args.action == 'add-machines':
+        add_machines(nova_client)
 
 
 if __name__ == "__main__":
