@@ -4,7 +4,7 @@ directory.
 
 To create guests with direct network ports and then enlist them into juju:
 
-1. Create machines on the given network:
+1. Create machines on the given network.
 
 ```
 $ ./manage-sriov-ports.py --network stor9 --number-of-units 10  --flavor m1.small --image-name focal --vnic-binding-type direct add-servers
@@ -23,15 +23,15 @@ $ ./manage-sriov-ports.py --network stor9 --number-of-units 10  --flavor m1.smal
 2020-12-01 13:12:32 [INFO] Launching instance ps5-bench-9
 ```
 
-1. Create manual cloud and bootstrap controller:
+1. Create manual cloud and bootstrap controller.
 
 ```
 $ ./manage-sriov-ports.py add-manual-cloud
-2020-12-01 13:14:00 [INFO] AUTH\_URL: http://10.245.161.156:5000/v3, api\_ver: 3
+2020-12-01 13:14:00 [INFO] AUTH_URL: http://10.245.161.156:5000/v3, api_ver: 3
 2020-12-01 13:14:00 [INFO] Using keystone API V3 (or later) for undercloud auth
 Only clouds with registered credentials are shown.
 There are more clouds, use --all to see them.
-2020-12-01 13:14:03 [INFO] /tmp/tmpy\_llfnjk
+2020-12-01 13:14:03 [INFO] /tmp/tmpy_llfnjk
 Cloud "ps5-bench-manual" successfully added to your local client.
 Creating Juju controller "ps5-bench-manual-controller" on ps5-bench-manual/default
 Looking for packaged Juju agent version 2.8.6 for amd64
@@ -47,11 +47,11 @@ Initial model "default" added
 (clients) ubuntu@gnuoy-bastio
 ```
 
-1. Add pre-created machines to manual cloud:
+1. Add pre-created machines to manual cloud.
 
 ```
 $ ./manage-sriov-ports.py add-machines
-2020-12-01 13:18:43 [INFO] AUTH\_URL: http://10.245.161.156:5000/v3, api\_ver: 3
+2020-12-01 13:18:43 [INFO] AUTH_URL: http://10.245.161.156:5000/v3, api_ver: 3
 2020-12-01 13:18:43 [INFO] Using keystone API V3 (or later) for undercloud auth
 2020-12-01 13:18:59 [INFO] Adding 10.9.0.6
 2020-12-01 13:18:59 [INFO] Adding 10.9.0.3
@@ -73,6 +73,26 @@ $ ./manage-sriov-ports.py add-machines
 2020-12-01 13:20:34 [INFO] Finished adding 10.9.0.6
 ```
 
+1. All done.
+
+```
+$ juju status
+Model    Controller                   Cloud/Region              Version  SLA          Timestamp
+default  ps5-bench-manual-controller  ps5-bench-manual/default  2.8.6    unsupported  13:23:48Z
+
+Machine  State    DNS        Inst id           Series  AZ  Message
+0        started  10.9.0.24  manual:10.9.0.24  focal       Manually provisioned machine
+1        started  10.9.0.21  manual:10.9.0.21  focal       Manually provisioned machine
+2        started  10.9.0.3   manual:10.9.0.3   focal       Manually provisioned machine
+3        started  10.9.0.15  manual:10.9.0.15  focal       Manually provisioned machine
+4        started  10.9.0.7   manual:10.9.0.7   focal       Manually provisioned machine
+5        started  10.9.0.14  manual:10.9.0.14  focal       Manually provisioned machine
+6        started  10.9.0.22  manual:10.9.0.22  focal       Manually provisioned machine
+7        started  10.9.0.11  manual:10.9.0.11  focal       Manually provisioned machine
+8        started  10.9.0.6   manual:10.9.0.6   focal       Manually provisioned machine
+```
+
+# Below are dragons !
 
 Before using any of the tooling update the submodules and create the python
 virtual environments:
