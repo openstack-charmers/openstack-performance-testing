@@ -160,7 +160,7 @@ def add_port_to_netplan(neutron_client, network_name, application_name):
                 zaza.model.run_on_unit(unit_name, "sudo netplan apply")
 
 def create_ports(nova_client, neutron_client, network_name, application_name,
-                 vnic_type, port_security_enabled=True):
+                 vnic_type, port_security_enabled=True, shutdown_move=True):
     """Add ports to all units in application.
 
     :param nova_client: Nova client
@@ -204,6 +204,19 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
                      port_name,
                      machine.data['instance-id']))
         else:
+            logging.info("Shutting down {}".format(
+                machine.data['instance-id']))
+            server_state =  getattr(server, 'OS-EXT-STS:vm_state').lower()
+            if shutdown_move and server_state != 'stopped':
+                server.stop()
+                #subprocess.call(
+                #    ['juju', 'ssh', unit.unit_name, 'sudo shutdown -h now'])
+                zaza_os.resource_reaches_status(
+                    nova_client.servers,
+                    server.id,
+                    resource_attribute='OS-EXT-STS:vm_state',
+                    expected_status="stopped",
+                    msg="Server stopped")
             logging.info("Attaching port {} to {}".format(
                 port_name,
                 machine.data['instance-id']))
@@ -211,6 +224,16 @@ def create_ports(nova_client, neutron_client, network_name, application_name,
                 port_id=port['id'],
                 net_id=None,
                 fixed_ip=None)
+            logging.info("Starting up {}".format(
+                machine.data['instance-id']))
+            if shutdown_move:
+                server.start()
+                zaza_os.resource_reaches_status(
+                    nova_client.servers,
+                    server.id,
+                    resource_attribute='OS-EXT-STS:vm_state',
+                    expected_status='active',
+                    msg="Server start")
 
 
 def parse_args(args):
@@ -260,7 +283,8 @@ def main():
             neutron_client,
             args.network_name,
             args.application_name,
-            binding_type)
+            binding_type,
+            shutdown_move=True)
         logging.info('Adding to netplan')
         add_port_to_netplan(
             neutron_client,
