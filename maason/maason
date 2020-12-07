@@ -26,12 +26,34 @@ def _get_fstype(
 async def _clear_machine_storage(
         machine: maas.client.viscera.machines.Machine):
     deferred_partition_removal = []
+    deferred_lv_removal = []
+    deferred_vg_removal = []
+    for vg in machine.volume_groups:
+        await vg.refresh()
+        for lv in vg.logical_volumes:
+            lv_fs = _get_fstype(lv.filesystem)
+            if lv.filesystem is not None:
+                if lv.filesystem.fstype in BCACHE_FSTYPES:
+                    print('Deferring removal of LV {}'.format(lv.name))
+                    deferred_lv_removal.append(lv)
+                    if vg not in deferred_vg_removal:
+                        deferred_vg_removal.append(vg)
+                    continue
+                print('Removing {} filesystem on {}'.format(lv_fs, lv.name))
+                await lv.unmount()
+                await lv.unformat()
+            print('Removing LV {}'.format(lv.name))
+            await lv.delete()
+        if vg not in deferred_vg_removal:
+            print('Removing VG {}'.format(vg.name))
+            await vg.delete()
     for bd in machine.block_devices:
         bd_fs = _get_fstype(bd.filesystem)
         for partition in bd.partitions:
             pt_fs = _get_fstype(partition.filesystem)
             if partition.filesystem is not None:
-                if partition.filesystem.fstype in BCACHE_FSTYPES:
+                if partition.filesystem.fstype in itertools.chain(
+                        BCACHE_FSTYPES, LVM_FSTYPES):
                     # We cannot remove partition until bcache is removed
                     print('Deferring removal of partition {}'
                           .format(partition.path))
@@ -44,16 +66,23 @@ async def _clear_machine_storage(
             print('Removing partition {}'.format(partition.path))
             await partition.delete()
         if (bd.filesystem is not None and
-                bd.filesystem.fstype not in BCACHE_FSTYPES):
+                bd.filesystem.fstype not in itertools.chain(
+                    BCACHE_FSTYPES, LVM_FSTYPES)):
             print('Removing filesystem {}'.format(bd_fs))
             await bd.unmount()
             await bd.unformat()
-        if bd.type == maas.client.enum.BlockDeviceType.VIRTUAL:
-            print('Removing virtual block device {}'.format(bd.name))
-            await bd.delete()
+    for bcache in machine.bcaches:
+        print('Removing bcache {}'.format(bcache))
+        await bcache.delete()
     for cache_set in machine.cache_sets:
         print('Removing cache set {}'.format(cache_set))
         await cache_set.delete()
+    for lv in deferred_lv_removal:
+        print('Removing LV {}'.format(lv.name))
+        await lv.delete()
+    for vg in deferred_vg_removal:
+        print('Removing VG {}'.format(vg.name))
+        await vg.delete()
     for partition in deferred_partition_removal:
         print('Removing partition {}'.format(partition.path))
         await partition.delete()
