@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import asyncio
+import collections
+import itertools
+import sys
 import time
 
 import maas.client
@@ -12,6 +15,7 @@ import maas.client.viscera.filesystems
 import maas.client.viscera.machines
 
 BCACHE_FSTYPES = ('bcache-backing', 'bcache-cache')
+LVM_FSTYPES = ('lvm-pv',)
 
 
 def _get_fstype(
@@ -34,18 +38,22 @@ async def _clear_machine_storage(
             lv_fs = _get_fstype(lv.filesystem)
             if lv.filesystem is not None:
                 if lv.filesystem.fstype in BCACHE_FSTYPES:
-                    print('Deferring removal of LV {}'.format(lv.name))
+                    print('{}: Deferring removal of LV {}'
+                          .format(machine.hostname, lv.name))
                     deferred_lv_removal.append(lv)
                     if vg not in deferred_vg_removal:
                         deferred_vg_removal.append(vg)
                     continue
-                print('Removing {} filesystem on {}'.format(lv_fs, lv.name))
+                print('{}: Removing {} filesystem on {}'
+                      .format(machine.hostname, lv_fs, lv.name))
                 await lv.unmount()
                 await lv.unformat()
-            print('Removing LV {}'.format(lv.name))
+            print('{}: Removing LV {}'
+                  .format(machine.hostname, lv.name))
             await lv.delete()
         if vg not in deferred_vg_removal:
-            print('Removing VG {}'.format(vg.name))
+            print('{}: Removing VG {}'
+                  .format(machine.hostname, vg.name))
             await vg.delete()
     for bd in machine.block_devices:
         bd_fs = _get_fstype(bd.filesystem)
@@ -55,36 +63,44 @@ async def _clear_machine_storage(
                 if partition.filesystem.fstype in itertools.chain(
                         BCACHE_FSTYPES, LVM_FSTYPES):
                     # We cannot remove partition until bcache is removed
-                    print('Deferring removal of partition {}'
-                          .format(partition.path))
+                    print('{}: Deferring removal of partition {}'
+                          .format(machine.hostname, partition.path))
                     deferred_partition_removal.append(partition)
                     continue
-                print('Removing {} filesystem on {}'
-                      .format(pt_fs, partition.path))
+                print('{}: Removing {} filesystem on {}'
+                      .format(machine.hostname, pt_fs, partition.path))
                 await partition.umount()
                 await partition.unformat()
-            print('Removing partition {}'.format(partition.path))
+            print('{}: Removing partition {}'
+                  .format(machine.hostname, partition.path))
             await partition.delete()
-        if (bd.filesystem is not None and
+        if (bd.type != maas.client.enum.BlockDeviceType.VIRTUAL and
+                bd.filesystem is not None and
                 bd.filesystem.fstype not in itertools.chain(
                     BCACHE_FSTYPES, LVM_FSTYPES)):
-            print('Removing filesystem {}'.format(bd_fs))
+            print('{}: Removing filesystem {} on {}'
+                  .format(machine.hostname, bd_fs, bd.name))
             await bd.unmount()
             await bd.unformat()
     for bcache in machine.bcaches:
-        print('Removing bcache {}'.format(bcache))
+        print('{}: Removing bcache {}'
+              .format(machine.hostname, bcache))
         await bcache.delete()
     for cache_set in machine.cache_sets:
-        print('Removing cache set {}'.format(cache_set))
+        print('{}: Removing cache set {}'
+              .format(machine.hostname, cache_set))
         await cache_set.delete()
     for lv in deferred_lv_removal:
-        print('Removing LV {}'.format(lv.name))
+        print('{}: Removing LV {}'
+              .format(machine.hostname, lv.name))
         await lv.delete()
     for vg in deferred_vg_removal:
-        print('Removing VG {}'.format(vg.name))
+        print('{}: Removing VG {}'
+              .format(machine.hostname, vg.name))
         await vg.delete()
     for partition in deferred_partition_removal:
-        print('Removing partition {}'.format(partition.path))
+        print('{}: Removing partition {}'
+              .format(machine.hostname, partition.path))
         await partition.delete()
 
 
@@ -95,18 +111,96 @@ async def _restore_machine_storage(
 
 async def _create_machine_storage(
         machine: maas.client.viscera.machines.Machine):
-    cache_devices = []
+    cache_sets = {}
+    cache_sets_refcnt = collections.defaultdict(int)
+    osds = []
+    backing_ssds = []
+    # create cache sets
     for bd in machine.block_devices:
-        if 'ssd' in bd.tags:
-            cache_devices.append(bd)
-    for bd in cache_devices:
-        div = 4
-        size = bd.size - 1024*1024*100
-        cache_size = size // div
-        for n in range(0, div):
-            await bd.partitions.create(int(cache_size))
-        for partition in bd.partitions:
-            await machine.cache_sets.create(partition)
+        if 'SSDPED1D480GA' in bd.model:
+            cache_set = await machine.cache_sets.create(bd)
+            cache_sets.update({cache_set.name: cache_set})
+    # create bcaches for spinners
+    for bd in machine.block_devices:
+        if (bd.type != maas.client.enum.BlockDeviceType.VIRTUAL and
+                'nvme' not in bd.name and
+                'SSDPED1D480GA' not in bd.model):
+            for cache_set_name, cache_set in sorted(cache_sets.items()):
+                if cache_sets_refcnt[cache_set_name] >= 2:
+                    continue
+                cache_sets_refcnt[
+                    cache_set_name] += 1
+                break
+            if bd.name.startswith('sd'):
+                bcache_name = '{}-{}'.format(
+                        cache_set_name, 
+                        'osd'+str(len(osds)))
+                osds.append(bd)
+            else:
+                bcache_name = '{}-{}'.format(cache_set_name, bd.name)
+            await machine.bcaches.create(
+                bcache_name, bd, cache_set,
+                maas.client.enum.CacheMode.WRITEBACK)
+    # create bcaches for NVMe SSDs
+    for bd in machine.block_devices:
+        if (bd.type != maas.client.enum.BlockDeviceType.VIRTUAL and
+                'nvme' in bd.name and
+                bd.name != 'nvme0n1' and
+                'SSDPED1D480GA' not in bd.model):
+            for cache_set_name, cache_set in sorted(cache_sets.items()):
+                if cache_sets_refcnt[cache_set_name] >= 2:
+                    continue
+                cache_sets_refcnt[
+                    cache_set_name] += 1
+                break
+            bcache_name = '{}-{}'.format(cache_set_name, bd.name)
+            await machine.bcaches.create(
+                bcache_name, bd, cache_set,
+                maas.client.enum.CacheMode.WRITEBACK)
+    # partition os disk
+    for bd in machine.block_devices:
+        if bd.name == 'nvme0n1':
+            available = bd.size - 300*1000*1000*1000
+            # /boot/efi
+            part_boot_efi = await bd.partitions.create(500*1000*1000)
+            available -= 512*1000*1000
+            
+            await part_boot_efi.format('fat32')
+            await part_boot_efi.mount('/boot/efi')
+            # /boot
+            part_boot = await bd.partitions.create(1024*1000*1000)
+            available -= 1024*1000*1000
+            
+            await part_boot.format('ext4')
+            await part_boot.mount('/boot')
+            # vg0
+            part_vg = await bd.partitions.create(available)
+            for cache_set_name, cache_set in sorted(cache_sets.items()):
+                if cache_sets_refcnt[cache_set_name] >= 2:
+                    continue
+                cache_sets_refcnt[
+                    cache_set_name] += 1
+            bcache_name = '{}-{}'.format(cache_set_name, 'vg0')
+            bcache_vg = await machine.bcaches.create(
+                bcache_name, part_vg, cache_set,
+                maas.client.enum.CacheMode.WRITEBACK)
+
+            vg = await machine.volume_groups.create(
+                'vg0', [bcache_vg.virtual_device])
+            available = vg.size
+            lvroot = await vg.logical_volumes.create(
+                'lvroot', 500*1000*1000*1000)
+            available -= 500*1000*1000*1000
+
+            await lvroot.format('ext4')
+            await lvroot.mount('/')
+
+            lvephem = await vg.logical_volumes.create(
+                'lvephemeral', available - 100*1000*1000*1000)
+
+
+async def _release(machine):
+    await machine.release(erase=True, secure_erase=False, quick_erase=True)
 
 
 @maas_async.asynchronous
@@ -147,28 +241,34 @@ async def work_with_maas(maas_url: str,
     for machine in machines:
         if machine.hostname not in allow_machines:
             continue
-        if machine.status != maas.client.enum.NodeStatus.READY:
+        if machine.status not in (
+                maas.client.enum.NodeStatus.DEPLOYED,
+                maas.client.enum.NodeStatus.DEPLOYING,
+                maas.client.enum.NodeStatus.FAILED_DEPLOYMENT,
+                maas.client.enum.NodeStatus.FAILED_RELEASING,
+                maas.client.enum.NodeStatus.FAILED_DISK_ERASING,):
             print('Can only work with machines in READY state, skip {}'
                   .format(repr(machine)))
             continue
         print(repr(machine))
+        # pending.append(_release(machine))
         if remove:
             pending.append(_clear_machine_storage(machine))
         elif restore_storage_config:
             pending.append(_restore_machine_storage(machine))
         elif create_storage_config:
             pending.append(_create_machine_storage(machine))
-        else:
-            for bd in machine.block_devices:
-                bd_fs = _get_fstype(bd.filesystem)
-                print('{} {} ({})'
-                      .format(bd.name, bd.type, bd_fs))
-                for partition in bd.partitions:
-                    pt_fs = _get_fstype(partition.filesystem)
-                    print(' - {} ({},  {})'
-                          .format(partition.path,
-                                  partition.size,
-                                  pt_fs))
+        for bd in machine.block_devices:
+            bd_fs = _get_fstype(bd.filesystem)
+            print('{}: {} {} {} ({})'
+                  .format(machine.hostname, bd.name, bd.type, bd.model, bd_fs))
+            for partition in bd.partitions:
+                pt_fs = _get_fstype(partition.filesystem)
+                print('{}: - {} ({},  {})'
+                      .format(machine.hostname,
+                              partition.path,
+                              partition.size,
+                              pt_fs))
     if pending:
         await asyncio.gather(*pending)
 
@@ -176,19 +276,16 @@ maas_url = 'http://127.0.0.1:5240/MAAS'
 maas_username = 'someuser'
 maas_password = 'somepassword'
 
-allow_machines=('node-fontana',)
+allow_machines=(
+    'localhost',
+)
 work_with_maas(
     maas_url, maas_username, maas_password,
     allow_machines=allow_machines,
     remove=False,
     restore_storage_config=False,
     create_storage_config=False)
-work_with_maas(
-    maas_url, maas_username, maas_password,
-    allow_machines=allow_machines,
-    remove=False,
-    restore_storage_config=False,
-    create_storage_config=False)
+sys.exit(0)
 work_with_maas(
     maas_url, maas_username, maas_password,
     allow_machines=allow_machines,
@@ -201,21 +298,3 @@ work_with_maas(
     remove=False,
     restore_storage_config=False,
     create_storage_config=True)
-work_with_maas(
-    maas_url, maas_username, maas_password,
-    allow_machines=allow_machines,
-    remove=False,
-    restore_storage_config=False,
-    create_storage_config=False)
-work_with_maas(
-    maas_url, maas_username, maas_password,
-    allow_machines=allow_machines,
-    remove=False,
-    restore_storage_config=True,
-    create_storage_config=False)
-work_with_maas(
-    maas_url, maas_username, maas_password,
-    allow_machines=allow_machines,
-    remove=False,
-    restore_storage_config=False,
-    create_storage_config=False)
