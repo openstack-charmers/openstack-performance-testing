@@ -1,6 +1,6 @@
 #!/bin/bash
 
-[[ $(which python) == /usr/* ]] || { echo "In venv, aborting"; exit 1; }
+[[ $(which python3) == /usr/* ]] || { echo "In venv, aborting"; exit 1; }
 
 git submodule init
 git submodule update
