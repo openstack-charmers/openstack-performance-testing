@@ -2,10 +2,8 @@
 
 set -x
 
-OPS_LIST="randread randwrite read write randrw"
-#OPS_LIST="read write randrw"
+OPS_LIST="randwrite randread write read randrw"
 BS_LIST="4k 4M"
-#BS_LIST="4m"
 
 # All in seconds
 RAMP_INTERVAL=90
@@ -14,8 +12,8 @@ NUMBER_OF_UNITS=200
 BATCH_SIZE=20
 BATCHES=$(($NUMBER_OF_UNITS/$BATCH_SIZE-1))
 
-for ops in $OPS_LIST; do
-	for bs in $BS_LIST; do
+for bs in $BS_LIST; do
+    for ops in $OPS_LIST; do
 		for i in `seq 0 $BATCHES`; do
 		    BATCH_START=$(($i * $BATCH_SIZE))
 		    BATCH_END=$(($BATCH_START + $BATCH_SIZE -1))
