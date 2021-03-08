@@ -1,0 +1,39 @@
+#!/usr/bin/python3
+
+import glob
+import subprocess
+
+CACHE_TUNING = {
+  'congested_read_threshold_us': '0',
+  'congested_write_threshold_us': '0',
+}
+
+CACHE_DEVICE_GLOB = '/sys/fs/bcache/*/{}'
+
+BCACHE_TUNING = {
+  'sequential_cutoff': '0',
+  'writeback_percent': '10',
+}
+
+BCACHE_DEVICE_GLOB = '/sys/block/bcache*/bcache/{}'
+
+
+def _write_sys_options(sys_glob, options):
+    for option, value in options.items():
+        for path in glob.glob(sys_glob.format(option)):
+            print('Tuning {}: {}'.format(path, value))
+            with open(path, 'w') as fp:
+                fp.write(value)
+
+
+def tune_cache_devices():
+    _write_sys_options(CACHE_DEVICE_GLOB, CACHE_TUNING)
+
+
+def tune_bcache_devices():
+    _write_sys_options(BCACHE_DEVICE_GLOB, BCACHE_TUNING)
+
+
+if __name__ == "__main__":
+    tune_cache_devices()
+    tune_bcache_devices()
