@@ -1,0 +1,28 @@
+name: grafana-snapshots
+version: "0.1"
+summary: Simple tool for download and upload of snapshots
+description: |
+  Ease download and upload of dashboard snapshots between
+  Grafana instances.
+confinement: strict
+grade: stable
+base: core20
+
+apps:
+  grafana-snapshots:
+    command: grafana-snapshots
+    plugs:
+      - network
+      - home
+
+parts:
+  dependencies:
+    plugin: python
+    python-packages:
+      - requests
+  local:
+    plugin: dump
+    source: .
+    prime:
+      - grafana-snapshots
+
