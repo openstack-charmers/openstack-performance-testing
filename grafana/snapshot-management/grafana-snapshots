@@ -1,0 +1,91 @@
+#!/usr/bin/python3
+# A simple tool for downloading and uploading snapshots from Grafana
+
+import argparse
+import csv
+import glob
+import json
+import os
+import re
+import requests
+import subprocess
+
+
+SAFE_FN = r"[^\w\d-]"
+
+
+def download(args):
+    base_url = args.url
+    headers = {"Authorization": "Bearer {}".format(args.token)}
+    if not os.path.exists(args.dir):
+        os.mkdir(args.dir)
+    snapshots = requests.get(
+        "{}/api/dashboard/snapshots".format(base_url), headers=headers
+    ).json()
+    for snapshot in snapshots:
+        print("Downloading: {}".format(snapshot.get("name")))
+        data = requests.get(
+            "{}/api/snapshots/{}".format(base_url, snapshot.get("key")), headers=headers
+        ).json()
+        with open(
+            os.path.join(
+                args.dir, re.sub(SAFE_FN, "_", str(snapshot.get("name"))) + ".json"
+            ),
+            "w",
+        ) as sfile:
+            sfile.write(json.dumps(data))
+
+
+def upload(args):
+    base_url = args.url
+    headers = {"Authorization": "Bearer {}".format(args.token)}
+    for jfile in glob.glob("{}/*.json".format(args.dir)):
+        with open(jfile, "r") as source:
+            snapshot_payload = json.loads(source.read())
+        snapshot_payload["name"] = snapshot_payload["dashboard"]["title"]
+        print("Uploading: {}".format(snapshot_payload["name"]))
+        requests.post(
+            "{}/api/snapshots".format(base_url),
+            json=snapshot_payload,
+        )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser("grafana-snapshots")
+    parser.set_defaults(prog=parser.prog)
+    subparsers = parser.add_subparsers(
+        title="subcommands",
+        description="valid subcommands",
+        help="sub-command help",
+    )
+    download_parser = subparsers.add_parser(
+        "download", help="Download all snapshots to current directory"
+    )
+    download_parser.add_argument(
+        "--dir",
+        metavar="DIR",
+        help="Directory to store downloaded snapshots in",
+        default=os.getcwd(),
+    )
+    download_parser.add_argument("url", type=str, help="Grafana URL")
+    download_parser.add_argument(
+        "token", type=str, help="API token to use for authentication"
+    )
+    download_parser.set_defaults(func=download)
+    upload_parser = subparsers.add_parser(
+        "upload", help="Upload all snapshots match supplied pattern"
+    )
+    upload_parser.add_argument(
+        "--dir",
+        metavar="DIR",
+        help="Directory to upload snapshots from",
+        default=os.getcwd(),
+    )
+    upload_parser.add_argument("url", type=str, help="Grafana URL")
+    upload_parser.add_argument(
+        "token", type=str, help="API token to use for authentication"
+    )
+    upload_parser.set_defaults(func=upload)
+    args = parser.parse_args()
+
+    args.func(args)
