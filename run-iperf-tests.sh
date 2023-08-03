@@ -11,6 +11,7 @@ OFFSET=0
 
 for speaker in `seq $((0+$OFFSET)) $((SPEAKERS+OFFSET))`; do
     TARGET=$(($speaker + $SPEAKERS))
+    juju run-action magpie/$TARGET listen
     juju run-action magpie/$speaker run-iperf \
 	units="magpie/$TARGET" \
 	iperf-batch-time=$BATCH_TIME \
