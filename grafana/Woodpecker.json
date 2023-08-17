@@ -1,14 +1,4 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS2_- JUJU GENERATED SOURCE",
-      "label": "prometheus2 - Juju generated source",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    }
-  ],
   "__requires": [
     {
       "type": "grafana",
@@ -73,7 +63,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -167,7 +157,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -260,7 +250,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -353,7 +343,7 @@
         "rgba(237, 129, 40, 0.89)",
         "#d44a3a"
       ],
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {}
@@ -453,7 +443,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "editable": true,
           "error": false,
           "fieldConfig": {
@@ -617,7 +607,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "description": "",
           "editable": true,
           "error": false,
@@ -743,7 +733,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "editable": true,
           "error": false,
           "fieldConfig": {
@@ -877,7 +867,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -988,7 +978,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "description": "",
           "editable": true,
           "error": false,
@@ -1114,7 +1104,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -1220,7 +1210,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "description": "",
           "fieldConfig": {
             "defaults": {
@@ -1345,7 +1335,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1465,7 +1455,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "editable": true,
           "error": false,
           "fieldConfig": {
@@ -1589,7 +1579,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "decimals": 0,
           "editable": true,
           "error": false,
@@ -1708,7 +1698,7 @@
           "bars": false,
           "dashLength": 10,
           "dashes": false,
-          "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+          "datasource": "prometheus - Juju generated source",
           "fieldConfig": {
             "defaults": {
               "custom": {},
@@ -1833,7 +1823,7 @@
       "type": "row"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1905,7 +1895,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1977,7 +1967,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2050,7 +2040,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2122,7 +2112,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2194,7 +2184,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2266,7 +2256,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2340,7 +2330,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2413,7 +2403,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2487,7 +2477,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2561,7 +2551,7 @@
       "type": "stat"
     },
     {
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "description": "",
       "fieldConfig": {
         "defaults": {
@@ -2639,7 +2629,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -2746,7 +2736,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -2851,7 +2841,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -2968,7 +2958,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -3076,7 +3066,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -3183,7 +3173,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+      "datasource": "prometheus - Juju generated source",
       "fieldConfig": {
         "defaults": {
           "custom": {},
@@ -3384,7 +3374,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+        "datasource": "prometheus - Juju generated source",
         "definition": "label_values(cluster)",
         "error": null,
         "hide": 0,
@@ -3407,7 +3397,7 @@
       {
         "allValue": null,
         "current": {},
-        "datasource": "${DS_PROMETHEUS2_- JUJU GENERATED SOURCE}",
+        "datasource": "prometheus - Juju generated source",
         "definition": "label_values(model)",
         "error": {
           "data": {
